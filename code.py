@@ -228,7 +228,15 @@ def get_events():
     raw_data = ""
 
     try:
-        raw_data = http.get(secrets["ticktick"]).text.replace('\r\n', '\n')  # Convert CRLF to LF
+        req = http.get(secrets["ticktick"])
+        # If you ever solve the DST issue:
+        # y = req.headers.get("date").split(" ")
+        # ds = "{}-{:02}-{:02}T{}".format(y[3], month_num(y[2]), int(y[1]), y[4])
+        # new_date = date.fromisoformat(ds)
+        print()
+
+        # datetime.fromisoformat()
+        raw_data = req.text.replace('\r\n', '\n')  # Convert CRLF to LF
     except RuntimeError:
         error("Failed getting events from TickTick!", 0.25)
 
@@ -272,12 +280,30 @@ def month_str(x: int, long=False):
            }[x][:None if long else 3]
 
 
+def month_num(x: str, long=False):
+    s = None if long else 3
+    return {
+        "January"[:s]  : 1,
+        "February"[:s] : 2,
+        "March"[:s]    : 3,
+        "April"[:s]    : 4,
+        "May"[:s]      : 5,
+        "June"[:s]     : 6,
+        "July"[:s]     : 7,
+        "August"[:s]   : 8,
+        "September"[:s]: 9,
+        "October"[:s]  : 10,
+        "November"[:s] : 11,
+        "December"[:s] : 12,
+    }[x]
+
+
 def draw(events):
     font_sm = bitmap_font.load_font("assets/ctrld-fixed-10r.pcf")
     font_lg = bitmap_font.load_font("assets/ctrld-fixed-16r.pcf")
     bat_bmp, bat_shd = load_img("assets/battery.bmp")
     today = set_today()
-    print(today)
+    # print(today.isoformat())
 
     # events = filter(lambda x: x[0].isoformat() >= today.date().isoformat(), events)
 
