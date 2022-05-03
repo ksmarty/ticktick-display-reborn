@@ -5,9 +5,9 @@
 ## Screenshots
 
 <p float="left">
-  <img src="https://user-images.githubusercontent.com/2217505/166505448-14d6d3ce-7fc2-4232-a17b-113f1227265f.jpeg" width="400" />
+  <img src="https://user-images.githubusercontent.com/2217505/166505448-14d6d3ce-7fc2-4232-a17b-113f1227265f.jpeg" width="350" />
   &nbsp; &nbsp; &nbsp; &nbsp;
-  <img src="https://user-images.githubusercontent.com/2217505/166505454-787da871-3669-4353-a9eb-a04cec19fb12.jpeg" width="400" /> 
+  <img src="https://user-images.githubusercontent.com/2217505/166505454-787da871-3669-4353-a9eb-a04cec19fb12.jpeg" width="350" /> 
 </p>
 
 ## Setup
