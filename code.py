@@ -1,4 +1,3 @@
-import re
 import ssl
 import time
 
@@ -7,7 +6,7 @@ import alarm
 import displayio
 import socketpool
 from adafruit_bitmap_font import bitmap_font
-from adafruit_datetime import datetime, date
+from adafruit_datetime import datetime
 from adafruit_display_shapes import circle, roundrect, rect
 from adafruit_display_text import label
 from adafruit_imageload import load as load_img
@@ -142,6 +141,12 @@ def error(msg: str, dur=10.0):
     bedtime(dur)
 
 
+def boot_time():
+    size = int.from_bytes(alarm.sleep_memory[10:14], "big") + 1
+    alarm.sleep_memory[10:14] = size.to_bytes(4, 'big')
+    return size
+
+
 def setup():
     magtag.peripherals.neopixel_disable = True
     magtag.peripherals.speaker_disable = True
@@ -169,50 +174,6 @@ def connect_wifi():
         error("Could not open a socket!", 0.25)
 
 
-def set_today():
-    global http
-    wt, ot = any, time.monotonic()
-
-    try:
-        wt = http.get("https://worldtimeapi.org/api/ip").json()
-    except RuntimeError:
-        error("Couldn't get time!", 0.25)
-    # Set time
-    return datetime.fromtimestamp(
-        wt["unixtime"] + wt["raw_offset"] + wt["dst_offset"] + int((time.monotonic() - ot) / 2)
-    )
-
-
-def date_str(dstr: tuple):
-    # Black magic
-    _, year, month, day, _, hour, minute, second = (map(lambda z: int(z) if (z or "").isdigit() else -1, dstr))
-    return datetime(year, month, day, hour, minute, second) if hour != -1 else date(year, month, day)
-
-
-def parse_event(raw: str):
-    content, description, ts = "", "", date
-    # Iterate over each line of the raw data
-    for line in re.compile('\n').split(raw):
-        # Match date string
-        dt = re.match("DTSTART;(VALUE=DATE:|TZID=.*?)(\d+)(\d\d)(\d\d)(T(\d\d)(\d\d)(\d\d))?", line)
-        if dt:
-            ts = date_str(dt.groups())
-            continue
-
-        # Match title
-        title = re.match("SUMMARY:(.*)", line)
-        if title:
-            content = title.group(1)
-            continue
-
-        # Match description - currently unused
-        desc = re.match("DESCRIPTION:(.*)", line)
-        if desc:
-            description = desc.group(1)
-            continue
-    return ts, content, description
-
-
 # Check if length of raw data is the same as last time
 def size_check(size):
     print(f"\nSize: {size}\n")
@@ -225,18 +186,16 @@ def size_check(size):
 
 def get_events():
     global http
-    raw_data = ""
+    raw_data = None
+    timestamp = None
 
     try:
-        req = http.get(secrets["ticktick"])
-        # If you ever solve the DST issue:
-        # y = req.headers.get("date").split(" ")
-        # ds = "{}-{:02}-{:02}T{}".format(y[3], month_num(y[2]), int(y[1]), y[4])
-        # new_date = date.fromisoformat(ds)
-        print()
+        req = http.get(f'https://ticktick-events.vercel.app/api/{secrets["ticktick"]}')
+        raw_data = req.json()
 
-        # datetime.fromisoformat()
-        raw_data = req.text.replace('\r\n', '\n')  # Convert CRLF to LF
+        timestamp = datetime.fromisoformat(raw_data["timestamp"])
+
+        # raw_data = req.text.replace('\r\n', '\n')  # Convert CRLF to LF
     except RuntimeError:
         error("Failed getting events from TickTick!", 0.25)
 
@@ -244,14 +203,7 @@ def get_events():
     # if size_check(len(raw_data)):
     #     return
 
-    # Split data into individual events
-    raw_events = re.compile('END:VEVENT\nBEGIN:VEVENT').split(raw_data)
-
-    # Convert raw events into a usable tuple: [time, title, description]
-    events = list(map(parse_event, raw_events))
-    events.sort(key=lambda x: x[0].isoformat())
-
-    return events
+    return [raw_data["events"], timestamp]
 
 
 def battery_status():
@@ -298,36 +250,38 @@ def month_num(x: str, long=False):
     }[x]
 
 
-def draw(events):
+def draw(events, today: datetime):
     font_sm = bitmap_font.load_font("assets/ctrld-fixed-10r.pcf")
     font_lg = bitmap_font.load_font("assets/ctrld-fixed-16r.pcf")
     bat_bmp, bat_shd = load_img("assets/battery.bmp")
-    today = set_today()
-    # print(today.isoformat())
 
     # events = filter(lambda x: x[0].isoformat() >= today.date().isoformat(), events)
 
     title_group = displayio.Group()
-    # Draw Title
-    title_group.append(label.Label(
-        font_sm,
-        x=93,
-        y=8,
-        text="~ TickTick To-Do ~",
-        color=Color.black
-    ))
-    # Hide "Updated" when plugged in as time will not be correct. See Readme.
-    # if magtag.peripherals.battery < 4.18:
+
+    # Title
     title_group.append(label.Label(
         font_sm,
         color=Color.black,
-        y=119,
-        # x=140,
-        # text="Updated: {}".format(str(today).replace('-', '/')[5:]),
+        x=93,
+        y=8,
+        text="~ TickTick To-Do ~",
+    ))
+    # Updated
+    title_group.append(label.Label(
+        font_sm,
+        color=Color.black,
         x=170,
-        text="Updated: {}".format(str(today).replace('-', '/')[5:-3]),
-        # x=224,
-        # text=str(today).replace('-', '/')[5:-3],
+        y=119,
+        text="Updated: {}".format(str(today).replace('-', '/')[5:-16]),
+    ))
+    # Unplugged
+    title_group.append(label.Label(
+        font_sm,
+        color=Color.black,
+        x=7,
+        y=119,
+        text="Unplugged: {} hours".format(boot_time() - 1),
     ))
 
     # Draw battery
@@ -349,7 +303,9 @@ def draw(events):
         # Current Month, Current Day, Current Height
         crm, crd, crh = 0, 0, 8
 
-        for ts, title, content in events:
+        for event in events:
+            title, content, ts = event["title"], event["description"], datetime.fromisoformat(event["start"])
+
             # Month header
             if ts.month != crm:
                 crm = ts.month
@@ -383,16 +339,13 @@ def draw(events):
                     y=4
                 ))
 
-            has_time = len(str(ts)) > 10
+            has_time = str(ts.time()) != "00:00:00"
 
             # Event background
             item_group.append(roundrect.RoundRect(
                 x=23,
-                # y=-5,
                 y=-6,
                 width=217 if has_time else 258,
-                # width=258,
-                # height=20,
                 height=22,
                 r=4,
                 fill=Color.lgrey
@@ -403,7 +356,6 @@ def draw(events):
                 text=title[:(26 if has_time else 31)],
                 color=Color.black,
                 x=27,
-                # y=5,
                 y=4,
             ))
             # Event time
@@ -443,8 +395,8 @@ def bedtime(duration: int | float):
 def main():
     setup()
     connect_wifi()
-    events = get_events()
-    draw(events)
+    [events, timestamp] = get_events()
+    draw(events, timestamp)
     bedtime(60)
 
 
