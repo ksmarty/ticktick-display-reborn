@@ -190,16 +190,20 @@ def get_events():
     timestamp = None
 
     try:
-        req = http.get(f'https://ticktick-events.vercel.app/api/{secrets["ticktick"]}')
+        body = {
+            "id"           : secrets["ticktick"],
+            "voltage"      : magtag.peripherals.battery,
+            "upstash_url"  : secrets["upstash_url"],
+            "upstash_token": secrets["upstash_token"],
+        }
+        req = http.post("https://ticktick-events.vercel.app/api/events", json=body)
         raw_data = req.json()
 
         timestamp = datetime.fromisoformat(raw_data["timestamp"])
-
-        # raw_data = req.text.replace('\r\n', '\n')  # Convert CRLF to LF
     except RuntimeError:
         error("Failed getting events from TickTick!", 0.25)
 
-    # Uncomment to enable size check
+    # Size check
     # if size_check(len(raw_data)):
     #     return
 
