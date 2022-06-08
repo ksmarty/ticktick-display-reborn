@@ -226,7 +226,7 @@ def battery_status():
     # Datasheet: https://cdn-shop.adafruit.com/product-files/4236/4236_ds_LP552535+420mAh+3.7V.pdf
     # Graph calculated from recorded data
     volts = magtag.peripherals.battery
-    percent = (curve(volts * -228 + 934.996) * 0.943 - 2.8635) * 100
+    percent = min((curve(volts * -228 + 934.996) * 0.943 - 2.8635) * 100, 100)
     return math.ceil((percent - 10) / 16)
 
 
@@ -291,13 +291,13 @@ def draw(events, today: datetime):
         text="Updated: {}".format(str(today).replace('-', '/')[5:-16]),
     ))
     # Unplugged
-    title_group.append(label.Label(
-        font_sm,
-        color=Color.black,
-        x=7,
-        y=119,
-        text="Unplugged: {} hours".format(boot_time() - 1),
-    ))
+    # title_group.append(label.Label(
+    #     font_sm,
+    #     color=Color.black,
+    #     x=7,
+    #     y=119,
+    #     text="Unplugged: {} hours".format(boot_time() - 1),
+    # ))
 
     # Draw battery
     battery_group = displayio.Group(x=274, y=4)
@@ -408,14 +408,11 @@ def bedtime(duration: int | float):
 
 
 def main():
-    try:
-        setup()
-        connect_wifi()
-        [events, timestamp] = get_events()
-        draw(events, timestamp)
-        bedtime(60)
-    except:
-        main()
+    setup()
+    connect_wifi()
+    [events, timestamp] = get_events()
+    draw(events, timestamp)
+    bedtime(60)
 
 
 if __name__ == "__main__":
