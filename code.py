@@ -408,11 +408,14 @@ def bedtime(duration: int | float):
 
 
 def main():
-    setup()
-    connect_wifi()
-    [events, timestamp] = get_events()
-    draw(events, timestamp)
-    bedtime(60)
+    try:
+        setup()
+        connect_wifi()
+        [events, timestamp] = get_events()
+        draw(events, timestamp)
+        bedtime(60)
+    except:
+        main()
 
 
 if __name__ == "__main__":
