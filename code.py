@@ -1,3 +1,4 @@
+import math
 import ssl
 import time
 
@@ -210,13 +211,23 @@ def get_events():
     return [raw_data["events"], timestamp]
 
 
+def curve(x):
+    return -1.69766 * 10 ** -15 * x ** 7 + \
+           1.28507 * 10 ** -12 * x ** 6 + \
+           -3.8474 * 10 ** -10 * x ** 5 + \
+           5.77331 * 10 ** -8 * x ** 4 + \
+           -4.56812 * 10 ** -6 * x ** 3 + \
+           0.000187889 * x ** 2 + \
+           -0.00520139 * x + \
+           4.09916
+
+
 def battery_status():
     # Datasheet: https://cdn-shop.adafruit.com/product-files/4236/4236_ds_LP552535+420mAh+3.7V.pdf
-    # >3.5v  = 2 = High
-    # >3.3v  = 1 = Medium
-    # <=3.3v = 0 = Low
+    # Graph calculated from recorded data
     volts = magtag.peripherals.battery
-    return 2 if volts > 3.5 else (1 if volts > 3.3 else 0)
+    percent = (curve(volts * -228 + 934.996) * 0.943 - 2.8635) * 100
+    return math.ceil((percent - 10) / 16)
 
 
 def month_str(x: int, long=False):
