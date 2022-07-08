@@ -21,7 +21,6 @@ except ImportError:
     raise
 
 magtag = MagTag()
-http: requests.Session
 
 
 # Sleep Memory Addresses
@@ -36,6 +35,14 @@ class Color:
     lgrey = 0xACACAC
     dgrey = 0x535353
     black = 0x0
+
+
+def setup():
+    # magtag.peripherals.neopixel_disable = True
+    magtag.peripherals.speaker_disable = True
+    if magtag.peripherals.light < 1000 and alarm.wake_alarm is not None:
+        bedtime(60)
+    loading()
 
 
 def loading():
@@ -142,21 +149,13 @@ def error(msg: str, dur=10.0):
     bedtime(dur)
 
 
-def boot_time():
-    size = int.from_bytes(alarm.sleep_memory[10:14], "big") + 1
-    alarm.sleep_memory[10:14] = size.to_bytes(4, 'big')
-    return size
+# def boot_time():
+#     size = int.from_bytes(alarm.sleep_memory[10:14], "big") + 1
+#     alarm.sleep_memory[10:14] = size.to_bytes(4, 'big')
+#     return size
 
 
-def setup():
-    magtag.peripherals.neopixel_disable = True
-    magtag.peripherals.speaker_disable = True
-    loading()
-
-
-# noinspection PyTypeChecker
 def connect_wifi():
-    global http
     try:
         radio.connect(secrets["ssid"], secrets["password"])
     except ConnectionError:
@@ -169,10 +168,13 @@ def connect_wifi():
         alarm.sleep_memory[3] = 1
 
     # return fetch object
+    # noinspection PyArgumentList, PyTypeChecker
     http = requests.Session(socketpool.SocketPool(radio), ssl.create_default_context())
 
     if not http:
         error("Could not open a socket!", 0.25)
+
+    return http
 
 
 # Check if length of raw data is the same as last time
@@ -185,8 +187,7 @@ def size_check(size):
     return False
 
 
-def get_events():
-    global http
+def get_events(http: requests.Session):
     raw_data = None
     timestamp = None
 
@@ -205,8 +206,8 @@ def get_events():
         error("Failed getting events from TickTick!", 0.25)
 
     # Size check
-    # if size_check(len(raw_data)):
-    #     return
+    if size_check(len(raw_data)):
+        bedtime(60)
 
     return [raw_data["events"], timestamp]
 
@@ -247,22 +248,22 @@ def month_str(x: int, long=False):
            }[x][:None if long else 3]
 
 
-def month_num(x: str, long=False):
-    s = None if long else 3
-    return {
-        "January"[:s]  : 1,
-        "February"[:s] : 2,
-        "March"[:s]    : 3,
-        "April"[:s]    : 4,
-        "May"[:s]      : 5,
-        "June"[:s]     : 6,
-        "July"[:s]     : 7,
-        "August"[:s]   : 8,
-        "September"[:s]: 9,
-        "October"[:s]  : 10,
-        "November"[:s] : 11,
-        "December"[:s] : 12,
-    }[x]
+# def month_num(x: str, long=False):
+#     s = None if long else 3
+#     return {
+#         "January"[:s]  : 1,
+#         "February"[:s] : 2,
+#         "March"[:s]    : 3,
+#         "April"[:s]    : 4,
+#         "May"[:s]      : 5,
+#         "June"[:s]     : 6,
+#         "July"[:s]     : 7,
+#         "August"[:s]   : 8,
+#         "September"[:s]: 9,
+#         "October"[:s]  : 10,
+#         "November"[:s] : 11,
+#         "December"[:s] : 12,
+#     }[x]
 
 
 def draw(events, today: datetime):
@@ -409,8 +410,8 @@ def bedtime(duration: int | float):
 
 def main():
     setup()
-    connect_wifi()
-    [events, timestamp] = get_events()
+    http = connect_wifi()
+    [events, timestamp] = get_events(http)
     draw(events, timestamp)
     bedtime(60)
 
