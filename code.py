@@ -38,10 +38,8 @@ class Color:
 
 
 def setup():
-    # magtag.peripherals.neopixel_disable = True
+    magtag.peripherals.neopixel_disable = True
     magtag.peripherals.speaker_disable = True
-    if magtag.peripherals.light < 1000 and alarm.wake_alarm is not None:
-        bedtime(60)
     loading()
 
 
