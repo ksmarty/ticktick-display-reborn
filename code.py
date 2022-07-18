@@ -178,7 +178,7 @@ def connect_wifi():
 # Check if length of raw data is the same as last time
 def size_check(size):
     print(f"\nSize: {size}\n")
-    if size == int.from_bytes(alarm.sleep_memory[0:3], "big"):
+    if size == int.from_bytes(alarm.sleep_memory[0:3], "big") and alarm.wake_alarm is not None:
         print("Data is probably unchanged. Going to sleep...")
         return True
     alarm.sleep_memory[0:3] = size.to_bytes(3, 'big')
