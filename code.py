@@ -203,8 +203,10 @@ def get_events(http: requests.Session):
     except RuntimeError:
         error("Failed getting events from TickTick!", 0.25)
 
-    # Size check
-    if size_check(len(raw_data)):
+    first_event_today = raw_data['events'][0]['start'][:10] == timestamp.date().isoformat()
+
+    # Size check & first event
+    if size_check(len(raw_data)) and not first_event_today:
         bedtime(60)
 
     return [raw_data["events"], timestamp]
