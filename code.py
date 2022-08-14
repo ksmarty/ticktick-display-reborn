@@ -1,3 +1,4 @@
+import json
 import math
 import ssl
 import time
@@ -191,9 +192,9 @@ def get_events(http: requests.Session):
 
     try:
         body = {
-            "id"           : secrets["ticktick"],
-            "voltage"      : magtag.peripherals.battery,
-            "upstash_url"  : secrets["upstash_url"],
+            "id": secrets["ticktick"],
+            "voltage": magtag.peripherals.battery,
+            "upstash_url": secrets["upstash_url"],
             "upstash_token": secrets["upstash_token"],
         }
         req = http.post("https://ticktick-events.vercel.app/api/events", json=body)
@@ -206,7 +207,7 @@ def get_events(http: requests.Session):
     first_event_today = raw_data['events'][0]['start'][:10] == timestamp.date().isoformat()
 
     # Size check & first event
-    if size_check(len(raw_data)) and not first_event_today:
+    if size_check(len(json.dumps(raw_data))) and timestamp.hour > 0:
         bedtime(60)
 
     return [raw_data["events"], timestamp]
@@ -233,15 +234,15 @@ def battery_status():
 
 def month_str(x: int, long=False):
     return {
-               1 : "January",
-               2 : "February",
-               3 : "March",
-               4 : "April",
-               5 : "May",
-               6 : "June",
-               7 : "July",
-               8 : "August",
-               9 : "September",
+               1: "January",
+               2: "February",
+               3: "March",
+               4: "April",
+               5: "May",
+               6: "June",
+               7: "July",
+               8: "August",
+               9: "September",
                10: "October",
                11: "November",
                12: "December",
