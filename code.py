@@ -1,3 +1,4 @@
+import binascii
 import json
 import math
 import ssl
@@ -11,6 +12,7 @@ from adafruit_bitmap_font import bitmap_font
 from adafruit_datetime import datetime
 from adafruit_display_shapes import circle, roundrect, rect
 from adafruit_display_text import label
+from adafruit_hashlib import md5
 from adafruit_imageload import load as load_img
 from adafruit_magtag.magtag import MagTag
 from wifi import radio
@@ -26,9 +28,9 @@ magtag = MagTag()
 
 # Sleep Memory Addresses
 # ----------------------------------------------------------------
-# [0:3] - Last ICS size, currently unused
 # [3:4] - WiFi error count
 # [10:14] - Epoch time at start of execution
+# [20:36] - Last data hash
 
 
 class Color:
@@ -176,13 +178,14 @@ def connect_wifi():
     return http
 
 
-# Check if length of raw data is the same as last time
-def size_check(size):
-    print(f"\nSize: {size}\n")
-    if size == int.from_bytes(alarm.sleep_memory[0:3], "big") and alarm.wake_alarm is not None:
-        print("Data is probably unchanged. Going to sleep...")
+# Check if hash of 'events' is the same as last time
+def hash_check(data):
+    data_hash = binascii.hexlify(md5(data).digest())
+    print(f"\nHash: {data_hash}")
+    if data_hash == alarm.sleep_memory[20:52] and alarm.wake_alarm is not None:
+        print("Data is unchanged. Going to sleep...")
         return True
-    alarm.sleep_memory[0:3] = size.to_bytes(3, 'big')
+    alarm.sleep_memory[20:52] = data_hash
     return False
 
 
@@ -207,7 +210,8 @@ def get_events(http: requests.Session):
     first_event_today = raw_data['events'][0]['start'][:10] == timestamp.date().isoformat()
 
     # Size check & first event
-    if size_check(len(json.dumps(raw_data))) and timestamp.hour > 0:
+    # if size_check(len(json.dumps(raw_data))) and timestamp.hour > 0:
+    if hash_check(json.dumps(raw_data["events"])) and timestamp.hour > 0:
         bedtime(60)
 
     return [raw_data["events"], timestamp]
